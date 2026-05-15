@@ -1,50 +1,72 @@
+import os
+import sqlite3
 import telebot
+from flask import Flask
+from threading import Thread
+from groq import Groq
 
 # ==========================================
-# 🛑 MANAGER'S AUTO-FILE GENERATOR 🛑
-# Yeh code khud teri CSV file bana dega!
+# 1. API KEYS (APNI KEYS YAHAN DALO)
 # ==========================================
-sample_data = """Product_Name,Price,Stock
-iPhone 15 Pro,$999,In Stock
-Sony Headphones,$250,Low Stock
-Nike Sneakers,$120,In Stock
-"""
-# File create aur save ho rahi hai
-with open("Free_Sample.csv", "w") as file:
-    file.write(sample_data)
-print("✅ Manager: 'Free_Sample.csv' Ready!")
+TELEGRAM_TOKEN = "8406846042:AAHhTDtGveACV6PMTOMkHFTqsIQmPUZy7RQ"
+GROQ_API_KEY = "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"
+ADMIN_USERNAME = "ishankushwaha"
+
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 # ==========================================
-# 🤖 BOT KA ASLI ENGINE 🤖
+# 2. RENDER ANTI-CRASH SYSTEM (Fake Website)
 # ==========================================
+app = Flask(__name__)
 
-# YAHAN APNA TOKEN PASTE KAR (Inverted commas ' ' ke andar)
-API_TOKEN = '8347331722:AAGCo-R2trbp98Wgw_Ko6xy3tVR2YPR3O5o'
+@app.route('/')
+def home():
+    return "Jarvis Bot is Online and Running 24/7!"
 
-bot = telebot.TeleBot(API_TOKEN)
+def run_server():
+    # Render jo bhi port dega, hum use yahan catch kar lenge
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
 
+# ==========================================
+# 3. DATABASE
+# ==========================================
+def init_db():
+    conn = sqlite3.connect("jarvis_users.db")
+    conn.execute('CREATE TABLE IF NOT EXISTS users (chat_id INTEGER PRIMARY KEY, msg_count INTEGER DEFAULT 0, is_premium INTEGER DEFAULT 0)')
+    conn.commit()
+    conn.close()
+
+# ==========================================
+# 4. BOT LOGIC
+# ==========================================
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
-    welcome_text = "Hello! Main Yourseller ka personal bot hu. 🤖\n\nCheck my commands:\n/sample - Free mein thoda data text mein dekho\n/getfile - Free sample CSV file download karo 📂\n/buy - Poora 1000+ Premium Dataset kharido 🔥"
-    bot.reply_to(message, welcome_text)
+def start(m):
+    bot.reply_to(m, "🤖 Jarvis System Online 24/7!")
 
-@bot.message_handler(commands=['sample'])
-def send_sample(message):
-    bot.reply_to(message, "📦 *FREE SAMPLE DATA* 📦\n1. iPhone 15 Pro | $999\n2. Sony Headphones | $250\n\nAsli CSV file chahiye toh /getfile type karo!", parse_mode='Markdown')
-
-@bot.message_handler(commands=['buy'])
-def send_buy_link(message):
-    bot.reply_to(message, "🔥 *PREMIUM E-COMMERCE LEADS* 🔥\nPrice: $10 Only!\n\nLink: [Coming Soon... Dukan ready ho rahi hai!]", parse_mode='Markdown')
-
-@bot.message_handler(commands=['getfile'])
-def send_free_file(message):
-    bot.reply_to(message, "Ruko bhai, tumhara free sample CSV nikal raha hu... 📂")
+@bot.message_handler(func=lambda m: True)
+def chat(m):
     try:
-        doc = open('Free_Sample.csv', 'rb')
-        bot.send_document(message.chat.id, doc)
-        bot.send_message(message.chat.id, "Yeh sirf trailer tha! Baki ke 980+ leads chahiye toh /buy type karo! 🔥")
+        bot.send_chat_action(m.chat.id, 'typing')
+        # Groq AI call
+        res = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": m.text}]
+        )
+        bot.reply_to(m, res.choices[0].message.content)
     except Exception as e:
-        bot.reply_to(message, "⚠️ Error aa gaya bhai.")
+        bot.reply_to(m, "System Error. Main abhi thoda busy hoon.")
 
-print("🚀 Manager: Salesman Bot is ONLINE... Grahak lao!")
-bot.polling()
+# ==========================================
+# 5. MAIN STARTUP
+# ==========================================
+if __name__ == "__main__":
+    init_db()
+    # 1. Render ko khush rakhne ke liye website start karo
+    Thread(target=run_server).start()
+    print("Anti-Crash System Started...")
+    
+    # 2. Asli kaam: Bot start karo
+    print("Jarvis Bot Started...")
+    bot.infinity_polling()
