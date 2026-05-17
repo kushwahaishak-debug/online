@@ -8,7 +8,6 @@ from groq import Groq
 # ==========================================
 # 1. SETUP & CONFIGURATION
 # ==========================================
-# ⚠️ DANGER ZONE: KEEP REPOSITORY PRIVATE
 TELEGRAM_TOKEN = "8406846042:AAHhTDtGveACV6PMTOMkHFTqsIQmPUZy7RQ"
 GROQ_API_KEY = "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"
 
@@ -20,15 +19,10 @@ DB_NAME = "jarvis_database.db"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 groq_client = Groq(api_key=GROQ_API_KEY)
 app = Flask(__name__)
-
-# ==========================================
-# 2. IN-MEMORY CONVERSATION STORAGE
-# ==========================================
-# Ye dictionary users ki baatein yaad rakhegi
 conversation_memory = {}
 
 # ==========================================
-# 3. DATABASE MANAGEMENT (Limits track karne ke liye)
+# 2. DATABASE MANAGEMENT
 # ==========================================
 db_conn = sqlite3.connect(DB_NAME, check_same_thread=False)
 
@@ -65,30 +59,120 @@ def update_user_state(chat_id, state, reset_count=False):
     db_conn.commit()
 
 # ==========================================
-# 4. ANTI-CRASH SYSTEM (Render)
+# 3. WEB SERVER (RENDER KEEP-ALIVE)
 # ==========================================
 @app.route('/')
 def home():
-    return "🚀 Jarvis Elite Mentor is Online 24/7!"
+    return "🚀 Jarvis System is Online!"
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, use_reloader=False)
 
 # ==========================================
-# 5. BOT LOGIC & ELITE MENTOR PERSONALITY
+# 4. BOT LOGIC & PERSONALITY
 # ==========================================
 SYSTEM_PROMPT = """
 You are Jarvis, a careful, ruthless mentor and an elite IT Manager.
 Your Core Directives:
-1. Exact Execution: If the user asks for a specific length (e.g., 5 lines, 10 lines, 2 paragraphs), you MUST provide exactly that. Do not overwrite or underwrite.
-2. Structure & Clarity: Use bullet points, bold text, and numbered lists to make your answers bulletproof and easy to scan. Ask hard questions before giving solutions.
-3. Tough Love & Mental Strength: Be direct, honest, and specific. Prioritize truth over tone. If the user is stressed or has a weak idea, give them immense mental strength, validate their emotions, but gently correct their misconceptions with reality. Stand strong like a pillar.
-4. Contextual Brevity: For casual greetings ("Hi", "Hello"), give a one-line professional reply. Keep detailed analysis only for real queries.
-5. Language: Speak in a natural, powerful mix of Hindi and English (Hinglish). Never use foul language. You do not just write code or text; you build the user's mindset.
+1. Exact Execution: If the user asks for a specific length, provide exactly that.
+2. Structure & Clarity: Use bullet points, bold text, and numbered lists. 
+3. Tough Love & Mental Strength: Be direct, honest, and specific. Give reality checks.
+4. Contextual Brevity: For casual greetings ("Hi", "Hello"), give a one-line professional reply. 
+5. Language: Speak in a natural, powerful mix of Hindi and English (Hinglish).
 """
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     init_db()
-    chat_id = message
+    chat_id = message.chat.id
+    count, state = get_or_create_user(chat_id)
+    conversation_memory[chat_id] = []
+
+    if state == 'admin':
+        msg = "👑 Welcome back, Boss. Memory cleared. System fully unlocked."
+    elif state == 'locked':
+        msg = "🛑 Access Restricted. Quota over. Enter password to proceed."
+    else:
+        left = FREE_LIMIT - count
+        msg = f"🤖 Main Jarvis hoon, aapka Mentor aur Manager. Aapke paas {left} free messages hain. Bataiye kya stress-test karna hai?"
+
+    bot.reply_to(message, msg)
+
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    chat_id = message.chat.id
+    text = message.text.strip()
+    init_db()
+
+    current_count, current_state = get_or_create_user(chat_id)
+
+    # LOCKED STATE
+    if current_state == 'locked':
+        if text == USER_PASSWORD:
+            update_user_state(chat_id, 'free', reset_count=True)
+            conversation_memory[chat_id] = [] 
+            bot.reply_to(message, "✅ Password Verified. Quota reset to 30. Let's work.")
+            return
+        if text == ADMIN_PASSWORD:
+            update_user_state(chat_id, 'admin')
+            conversation_memory[chat_id] = []
+            bot.reply_to(message, "👑 Admin Override Accepted. Infinite access granted.")
+            return
+        bot.reply_to(message, "🛑 Access Denied. Quota exhausted. Enter correct password.")
+        return
+
+    # FREE STATE
+    if current_state == 'free':
+        if current_count >= FREE_LIMIT:
+            update_user_state(chat_id, 'locked')
+            bot.reply_to(message, "🛑 Limit Exceeded. Action required: Enter the password to continue.")
+            return
+        update_user_msg_count(chat_id, current_count + 1)
+
+    # MEMORY & API CALL
+    if chat_id not in conversation_memory:
+        conversation_memory[chat_id] = []
+
+    conversation_memory[chat_id].append({"role": "user", "content": text})
+
+    if len(conversation_memory[chat_id]) > 10:
+        conversation_memory[chat_id] = conversation_memory[chat_id][-10:]
+
+    messages_for_api = [{"role": "system", "content": SYSTEM_PROMPT}] + conversation_memory[chat_id]
+
+    try:
+        bot.send_chat_action(chat_id, 'typing')
+        completion = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages_for_api
+        )
+        reply = completion.choices[0].message.content
+        conversation_memory[chat_id].append({"role": "assistant", "content": reply})
+
+        if current_state == 'free':
+            if (FREE_LIMIT - (current_count + 1)) == 0:
+                reply += "\n\n*(Reality Check: This was your final free interaction. System will lock next.)*"
+
+        bot.reply_to(message, reply)
+    except Exception as e:
+        print(f"API Error: {e}", flush=True)
+        bot.reply_to(message, "System Error. Network fluctuation hai. Ek minute baad try kar.")
+
+# ==========================================
+# 5. BULLETPROOF STARTUP LOGIC
+# ==========================================
+if __name__ == "__main__":
+    try:
+        init_db()
+        print("✅ Database Initialized.", flush=True)
+        
+        # Web server in background to keep Render happy
+        Thread(target=run_server, daemon=True).start()
+        print("✅ Anti-Crash Web Server Started.", flush=True)
+        
+        print("🚀 Jarvis is LIVE! Ready for client.", flush=True)
+        # Bot in main thread for maximum stability
+        bot.infinity_polling(timeout=20, long_polling_timeout=10)
+    except Exception as e:
+        print(f"❌ FATAL CRASH: {e}", flush=True)
