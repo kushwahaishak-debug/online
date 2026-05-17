@@ -16,7 +16,7 @@ ADMIN_PASSWORD = "88"
 
 # ⚠️ MENTOR NOTE: Maine checking ke liye limit 3 kardi hai. 
 # Test karne ke baad tu isko wapas 30 kar lena.
-FREE_LIMIT = 3 
+FREE_LIMIT = 30 
 DB_NAME = "jarvis_database.db"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
