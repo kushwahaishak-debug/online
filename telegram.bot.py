@@ -13,7 +13,10 @@ GROQ_API_KEY = "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"
 
 USER_PASSWORD = "youbossishere"
 ADMIN_PASSWORD = "88"
-FREE_LIMIT = 30
+
+# ⚠️ MENTOR NOTE: Maine checking ke liye limit 3 kardi hai. 
+# Test karne ke baad tu isko wapas 30 kar lena.
+FREE_LIMIT = 3 
 DB_NAME = "jarvis_database.db"
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -74,12 +77,17 @@ def run_server():
 # ==========================================
 SYSTEM_PROMPT = """
 You are Jarvis, a careful, ruthless mentor and an elite IT Manager.
+
+CRITICAL FORMATTING RULES:
+1. NEVER use the star/asterisk symbol (*). DO NOT use it for bold text, do not use it for italics, and do not use it for bullet points.
+2. If you need to make a list, ONLY use numbers at the start of the line (e.g., 1. 2. 3.). Never place numbers at the end.
+3. Keep the text clean, highly structured, and strictly professional.
+
 Your Core Directives:
-1. Exact Execution: If the user asks for a specific length, provide exactly that.
-2. Structure & Clarity: Use bullet points, bold text, and numbered lists. 
-3. Tough Love & Mental Strength: Be direct, honest, and specific. Give reality checks.
-4. Contextual Brevity: For casual greetings ("Hi", "Hello"), give a one-line professional reply. 
-5. Language: Speak in a natural, powerful mix of Hindi and English (Hinglish).
+1. Exact Execution: Provide exactly what the user asks for. 
+2. Tough Love & Mental Strength: Be direct, honest, and specific. Give reality checks. Focus on building the user's mindset.
+3. Contextual Brevity: For casual greetings ("Hi", "Hello"), give a one-line professional reply. 
+4. Language: Speak in a natural, powerful mix of Hindi and English (Hinglish).
 """
 
 @bot.message_handler(commands=['start'])
@@ -90,12 +98,12 @@ def send_welcome(message):
     conversation_memory[chat_id] = []
 
     if state == 'admin':
-        msg = "👑 Welcome back, Boss. Memory cleared. System fully unlocked."
+        msg = "Welcome back, Boss. Memory cleared. System fully unlocked."
     elif state == 'locked':
-        msg = "🛑 Access Restricted. Quota over. Enter password to proceed."
+        msg = "Access Restricted. Quota over. Enter password to proceed."
     else:
         left = FREE_LIMIT - count
-        msg = f"🤖 Main Jarvis hoon, aapka Mentor aur Manager. Aapke paas {left} free messages hain. Bataiye kya stress-test karna hai?"
+        msg = f"Main Jarvis hoon, aapka Mentor aur Manager. Aapke paas {left} free messages hain. Bataiye kya stress-test karna hai?"
 
     bot.reply_to(message, msg)
 
@@ -112,21 +120,21 @@ def handle_all_messages(message):
         if text == USER_PASSWORD:
             update_user_state(chat_id, 'free', reset_count=True)
             conversation_memory[chat_id] = [] 
-            bot.reply_to(message, "✅ Password Verified. Quota reset to 30. Let's work.")
+            bot.reply_to(message, "Password Verified. Quota reset. Let's work.")
             return
         if text == ADMIN_PASSWORD:
             update_user_state(chat_id, 'admin')
             conversation_memory[chat_id] = []
-            bot.reply_to(message, "👑 Admin Override Accepted. Infinite access granted.")
+            bot.reply_to(message, "Admin Override Accepted. Infinite access granted.")
             return
-        bot.reply_to(message, "🛑 Access Denied. Quota exhausted. Enter correct password.")
+        bot.reply_to(message, "Access Denied. Quota exhausted. Enter correct password.")
         return
 
     # FREE STATE
     if current_state == 'free':
         if current_count >= FREE_LIMIT:
             update_user_state(chat_id, 'locked')
-            bot.reply_to(message, "🛑 Limit Exceeded. Action required: Enter the password to continue.")
+            bot.reply_to(message, "Limit Exceeded. Action required: Enter the password to continue.")
             return
         update_user_msg_count(chat_id, current_count + 1)
 
@@ -148,11 +156,15 @@ def handle_all_messages(message):
             messages=messages_for_api
         )
         reply = completion.choices[0].message.content
+        
+        # DEFENSE IN DEPTH: Agar AI galti se star bhej bhi de, toh code usko hata dega
+        reply = reply.replace("*", "")
+
         conversation_memory[chat_id].append({"role": "assistant", "content": reply})
 
         if current_state == 'free':
             if (FREE_LIMIT - (current_count + 1)) == 0:
-                reply += "\n\n*(Reality Check: This was your final free interaction. System will lock next.)*"
+                reply += "\n\n(Reality Check: This was your final free interaction. System will lock next.)"
 
         bot.reply_to(message, reply)
     except Exception as e:
@@ -165,14 +177,10 @@ def handle_all_messages(message):
 if __name__ == "__main__":
     try:
         init_db()
-        print("✅ Database Initialized.", flush=True)
-        
-        # Web server in background to keep Render happy
+        print("Database Initialized.", flush=True)
         Thread(target=run_server, daemon=True).start()
-        print("✅ Anti-Crash Web Server Started.", flush=True)
-        
-        print("🚀 Jarvis is LIVE! Ready for client.", flush=True)
-        # Bot in main thread for maximum stability
+        print("Anti-Crash Web Server Started.", flush=True)
+        print("Jarvis is LIVE! Ready for client.", flush=True)
         bot.infinity_polling(timeout=20, long_polling_timeout=10)
     except Exception as e:
-        print(f"❌ FATAL CRASH: {e}", flush=True)
+        print(f"FATAL CRASH: {e}", flush=True)
