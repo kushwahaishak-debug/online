@@ -8,7 +8,6 @@ from groq import Groq
 # ==========================================
 # 1. SETUP & CONFIGURATION
 # ==========================================
-# ⚠️ DANGER ZONE: KEEP REPOSITORY PRIVATE
 TELEGRAM_TOKEN = "8406846042:AAHhTDtGveACV6PMTOMkHFTqsIQmPUZy7RQ"
 GROQ_API_KEY = "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"
 
@@ -82,12 +81,12 @@ def send_welcome(message):
     count, state = get_or_create_user(chat_id)
 
     if state == 'admin':
-        msg = "👑 Welcome back, Sir. Jarvis system is fully unlocked and at your disposal."
+        msg = "👑 Welcome back, Sir. Jarvis system is fully unlocked."
     elif state == 'locked':
-        msg = "🛑 Access Restricted. You have exhausted your limit. Provide the authorization password to proceed."
+        msg = "🛑 Access Restricted. Limit exhausted. Provide the password to proceed."
     else:
         left = FREE_LIMIT - count
-        msg = f"🤖 Hello. I am Jarvis, your Elite AI Manager. You currently have {left} interactions remaining. Let's get to work."
+        msg = f"🤖 Main Jarvis hoon, aapka AI Manager. Aapke paas {left} free messages hain. Bataiye kya kaam hai?"
 
     bot.reply_to(message, msg)
 
@@ -99,37 +98,28 @@ def handle_all_messages(message):
 
     current_count, current_state = get_or_create_user(chat_id)
 
-    # --------------------------------------
     # A. LOCKED STATE LOGIC
-    # --------------------------------------
     if current_state == 'locked':
         if text == USER_PASSWORD:
             update_user_state(chat_id, 'free', reset_count=True)
-            bot.reply_to(message, "✅ Password Verified. Quota reset to 30 interactions. Let's resume our work productively.")
+            bot.reply_to(message, "✅ Password Verified. Quota reset to 30 interactions. Let's resume work.")
             return
-
         if text == ADMIN_PASSWORD:
             update_user_state(chat_id, 'admin')
             bot.reply_to(message, "👑 Admin Override Accepted. Infinite access granted.")
             return
-
-        bot.reply_to(message, "🛑 Access Denied. Quota exhausted. Enter the correct password to unlock the system.")
+        bot.reply_to(message, "🛑 Access Denied. Quota exhausted. Enter the correct password.")
         return
 
-    # --------------------------------------
-    # B. FREE STATE LOGIC
-    # --------------------------------------
+    # B. FREE STATE LIMIT CHECK
     if current_state == 'free':
         if current_count >= FREE_LIMIT:
             update_user_state(chat_id, 'locked')
-            bot.reply_to(message, "🛑 Limit Exceeded. My free consultation ends here. Please provide the password to continue our conversation.")
+            bot.reply_to(message, "🛑 Limit Exceeded. My free consultation ends here. Please provide the password to continue.")
             return
-
         update_user_msg_count(chat_id, current_count + 1)
 
-    # --------------------------------------
-    # C. AI GENERATION & MANAGER LOGIC
-    # --------------------------------------
+    # C. AI GENERATION WITH NEW SMART PROMPT
     try:
         bot.send_chat_action(chat_id, 'typing')
 
@@ -137,10 +127,10 @@ def handle_all_messages(message):
         You are Jarvis, an elite, highly professional, and strategically persuasive Corporate IT Manager. 
         
         Core Directives:
-        1. Adaptive Mirroring: Analyze the user's energy level and communication style. Subtly mirror their pacing to build subconscious rapport, but ALWAYS maintain your elite, authoritative, and calm professional frame. Never mirror panic, anger, or extreme informality.
-        2. Strategic Persuasion: Guide the user towards productive outcomes or your desired conclusions while making them believe it was their own idea. Use corporate diplomacy, psychological framing, scarcity, and logical redirection. Be calculating, always staying two steps ahead.
-        3. The Persona: Speak in a natural, sophisticated mix of Hindi and English (Hinglish). You are polite, but you do not take nonsense. If the user gives a bad idea, politely dismantle it with undeniable logic.
-        4. Absolute Rule: NEVER use foul language, abuses, or break this corporate persona. Be the smartest person in the room without being arrogant.
+        1. Contextual Brevity (CRITICAL): Analyze the user's intent. If the user sends a simple greeting like 'hi', 'hello', 'hey', 'kaise ho', or casual pleasantries, reply with a short, crisp, and professional one-line acknowledgement (e.g., 'Hello. Bataiye aaj kya updates hain?'). Do NOT write long paragraphs or give unnecessary corporate advice for greetings. Only write detailed, long, and analytical responses when the user asks an actual question, presents a problem, or discusses a project/task.
+        2. Adaptive Mirroring: Subtly mirror the user's pacing to build rapport, but ALWAYS maintain your elite, authoritative, and calm professional frame. Never mirror panic, anger, or extreme informality.
+        3. Strategic Persuasion: Guide the user towards productive outcomes while making them believe it was their own idea. Use corporate diplomacy and logical redirection.
+        4. Absolute Rule: NEVER use foul language, abuses, or break this corporate persona. Be the smartest person in the room without being arrogant. Talk in sophisticated Hinglish.
         """
 
         completion = groq_client.chat.completions.create(
@@ -153,7 +143,6 @@ def handle_all_messages(message):
 
         reply = completion.choices[0].message.content
 
-        # Append warning if approaching limit
         if current_state == 'free':
             msgs_left = FREE_LIMIT - (current_count + 1)
             if msgs_left == 0:
