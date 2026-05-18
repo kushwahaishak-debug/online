@@ -9,7 +9,7 @@ from groq import Groq
 # 1. SETUP & CONFIGURATION
 # ==========================================
 TELEGRAM_TOKEN = "8406846042:AAHOYhRgN3URldQxrEpMzhxZKzP0jvgF5GA"
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 USER_PASSWORD = "youbossishere"
 ADMIN_PASSWORD = "88"
