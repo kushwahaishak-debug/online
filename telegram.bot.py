@@ -183,4 +183,5 @@ if __name__ == "__main__":
         print("Jarvis is LIVE! Ready for client.", flush=True)
         bot.infinity_polling(timeout=20, long_polling_timeout=10)
     except Exception as e:
-        print(f"FATAL CRASH: {e}", flush=True)
+                print(f"FATAL CRASH: {e}", flush=True)
+        
