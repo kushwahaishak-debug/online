@@ -8,7 +8,7 @@ from groq import Groq
 # ==========================================
 # 1. SETUP & CONFIGURATION
 # ==========================================
-TELEGRAM_TOKEN = "8406846042:AAGUmfKyIxALnSm_gDx2GklAdqQGL-eXx1c"
+TELEGRAM_TOKEN = "8799212140:AAHuA9WF5xYC93heUtU6bpgXLn-3kmzCCRo"
 GROQ_API_KEY = "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"
 
 USER_PASSWORD = "youbossishere"
